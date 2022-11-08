@@ -406,7 +406,7 @@ OpStatus Renamer::UpdateDest(Transaction* t, EngineShard* es) {
   return OpStatus::OK;
 }
 
-struct ScanOpts {
+struct GenericScanOpts {
   string_view pattern;
   string_view type_filter;
   size_t limit = 10;
@@ -496,7 +496,7 @@ OpResult<bool> OnRestore(const OpArgs& op_args, std::string_view key, std::strin
                     restore_args.ExpirationTime());
 }
 
-bool ScanCb(const OpArgs& op_args, PrimeIterator it, const ScanOpts& opts, StringVec* res) {
+bool ScanCb(const OpArgs& op_args, PrimeIterator it, const GenericScanOpts& opts, StringVec* res) {
   auto& db_slice = op_args.shard->db_slice();
   if (it->second.HasExpire()) {
     it = db_slice.ExpireIfNeeded(op_args.db_cntx, it).first;
@@ -527,7 +527,8 @@ bool ScanCb(const OpArgs& op_args, PrimeIterator it, const ScanOpts& opts, Strin
   return true;
 }
 
-void OpScan(const OpArgs& op_args, const ScanOpts& scan_opts, uint64_t* cursor, StringVec* vec) {
+void OpScan(const OpArgs& op_args, const GenericScanOpts& scan_opts, uint64_t* cursor,
+            StringVec* vec) {
   auto& db_slice = op_args.shard->db_slice();
   DCHECK(db_slice.IsDbValid(op_args.db_cntx.db_index));
 
@@ -547,7 +548,7 @@ void OpScan(const OpArgs& op_args, const ScanOpts& scan_opts, uint64_t* cursor, 
   *cursor = cur.value();
 }
 
-uint64_t ScanGeneric(uint64_t cursor, const ScanOpts& scan_opts, StringVec* keys,
+uint64_t ScanGeneric(uint64_t cursor, const GenericScanOpts& scan_opts, StringVec* keys,
                      ConnectionContext* cntx) {
   ShardId sid = cursor % 1024;
 
@@ -740,7 +741,7 @@ void GenericFamily::Keys(CmdArgList args, ConnectionContext* cntx) {
 
   StringVec keys;
 
-  ScanOpts scan_opts;
+  GenericScanOpts scan_opts;
   scan_opts.pattern = pattern;
   scan_opts.limit = 512;
   auto output_limit = absl::GetFlag(FLAGS_keys_output_limit);
@@ -1196,7 +1197,7 @@ void GenericFamily::Scan(CmdArgList args, ConnectionContext* cntx) {
     return (*cntx)->SendError("invalid cursor");
   }
 
-  ScanOpts scan_opts;
+  GenericScanOpts scan_opts;
 
   for (unsigned i = 2; i < args.size(); i += 2) {
     if (i + 1 == args.size()) {

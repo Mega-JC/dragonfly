@@ -193,4 +193,33 @@ TieredStats& TieredStats::operator+=(const TieredStats& o) {
   return *this;
 }
 
+OpResult<ScanOpts> ScanOpts::TryFrom(CmdArgList args) {
+  ScanOpts scan_opts;
+
+  for (unsigned i = 3; i < args.size(); i += 2) {
+    ToUpper(&args[i]);
+    string_view opt = ArgS(args, i);
+    if (i + 1 == args.size()) {
+      return facade::OpStatus::SYNTAX_ERR;
+    }
+
+    if (opt == "COUNT") {
+      if (!absl::SimpleAtoi(ArgS(args, i + 1), &scan_opts.limit)) {
+        return facade::OpStatus::INVALID_INT;
+      }
+      if (scan_opts.limit == 0)
+        scan_opts.limit = 1;
+      else if (scan_opts.limit > 4096)
+        scan_opts.limit = 4096;
+    } else if (opt == "MATCH") {
+      scan_opts.pattern = ArgS(args, i + 1);
+      if (scan_opts.pattern == "*")
+        scan_opts.pattern = string_view{};
+    } else {
+      return facade::OpStatus::SYNTAX_ERR;
+    }
+  }
+  return scan_opts;
+}
+
 }  // namespace dfly

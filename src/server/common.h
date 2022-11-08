@@ -4,16 +4,20 @@
 
 #pragma once
 
-#include <boost/fiber/mutex.hpp>
 #include <absl/strings/ascii.h>
 #include <absl/strings/str_cat.h>
 #include <absl/types/span.h>
 
+#include <boost/fiber/mutex.hpp>
 #include <string_view>
 #include <vector>
 
 #include "facade/facade_types.h"
 #include "facade/op_status.h"
+
+extern "C" {
+#include "redis/util.h"
+}
 
 namespace dfly {
 
@@ -32,6 +36,7 @@ using facade::ArgS;
 using facade::CmdArgList;
 using facade::CmdArgVec;
 using facade::MutableSlice;
+using facade::OpResult;
 
 using ArgSlice = absl::Span<const std::string_view>;
 using StringVec = std::vector<std::string>;
@@ -195,5 +200,17 @@ using AggregateError = AggregateValue<std::error_code>;
 using AggregateStatus = AggregateValue<facade::OpStatus>;
 static_assert(facade::OpStatus::OK == facade::OpStatus{},
               "Default intitialization should be OK value");
+
+struct ScanOpts {
+  std::string_view pattern;
+  size_t limit = 10;
+
+  constexpr bool Matches(std::string_view val_name) const {
+    if (pattern.empty())
+      return true;
+    return stringmatchlen(pattern.data(), pattern.size(), val_name.data(), val_name.size(), 0) == 1;
+  }
+  static OpResult<ScanOpts> TryFrom(CmdArgList args);
+};
 
 }  // namespace dfly
