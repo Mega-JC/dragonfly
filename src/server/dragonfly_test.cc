@@ -78,6 +78,18 @@ TEST_F(DflyEngineTest, Sds) {
   sdsfreesplitres(argv, argc);
 }
 
+TEST_F(DflyEngineTest, MultiIssue468) {
+  RespExpr resp = Run({"multi"});
+  ASSERT_EQ(resp, "OK");
+  resp = Run({"SET", "foo", "bar", "EX", "EX", "PX", "oiuqwer"});
+  ASSERT_EQ(resp, "QUEUED");
+
+  resp = Run({"exec"});
+  // At this point it going to crash
+  // so the next line will not executed
+  ASSERT_THAT(resp, ErrArg("ERR syntax error"));
+}
+
 TEST_F(DflyEngineTest, Multi) {
   RespExpr resp = Run({"multi"});
   ASSERT_EQ(resp, "OK");
